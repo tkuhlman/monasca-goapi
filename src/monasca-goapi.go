@@ -5,8 +5,9 @@
 package main
 
 import (
-	"fmt"
 	"encoding/json"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"runtime"
@@ -33,22 +34,23 @@ func main() {
 }
 
 func metrics(writer http.ResponseWriter, request *http.Request) {
-	body := make([]byte, 1024)
-	_, err := request.Body.Read(body)
-	if err != nil {
+	// todo I should 2048 be intelligent about the larger payload, right now it will die on larger than 2048
+	body := make([]byte, 2048)
+	bodySize, err := request.Body.Read(body)
+	if err != nil && err != io.EOF {
+		writer.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(writer, "Error reading payload", err)
 		return
 	}
 	var metrics []metric
-	err = json.Unmarshal(body, metrics)
+	err = json.Unmarshal(body[:bodySize], &metrics)
 	if err != nil{
+		writer.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(writer, "Invalid json", err)
 		return
 	}
 	// todo I need to write to kafka
-	fmt.Printf("%v", metrics)
+	fmt.Printf("Metrics - %v", metrics)
 
 	writer.WriteHeader(http.StatusNoContent)  //StatusNoContent == 204
-// todo it is returning a 200 not 204 for some reason
-//	fmt.Fprint(writer, "")
 }
