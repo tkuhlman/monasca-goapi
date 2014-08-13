@@ -13,17 +13,14 @@ import (
 	"runtime"
 )
 
-type metricMetaData struct {
-	tenantId, region string
-}
-
+/*
 type metric struct {
 	name string
-	dimensions string
-	creation_time, timestamp string  //In a real implementation probably shouldn't be a string
-	meta metricMetaData
+	dimensions map[string]string
+	timestamp int  //In a real implementation probably shouldn't be an int
 	value int
 }
+*/
 
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU()) // Use all the machine's cores
@@ -42,7 +39,9 @@ func metrics(writer http.ResponseWriter, request *http.Request) {
 		fmt.Fprintf(writer, "Error reading payload", err)
 		return
 	}
-	var metrics []metric
+// For some reason json is not properly unmarshalling to my array of metric, using a generic interface instead
+//	var metrics []metric
+	var metrics []interface{}
 	err = json.Unmarshal(body[:bodySize], &metrics)
 	if err != nil{
 		writer.WriteHeader(http.StatusBadRequest)
@@ -50,7 +49,7 @@ func metrics(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 	// todo I need to write to kafka
-	fmt.Printf("Metrics - %v", metrics)
+	//fmt.Printf("JSON - %s\n\nMetrics - %+v\n---\n", body[:bodySize], metrics)
 
 	writer.WriteHeader(http.StatusNoContent)  //StatusNoContent == 204
 }
