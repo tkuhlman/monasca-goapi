@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -25,24 +26,27 @@ type metric struct {
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU()) // Use all the machine's cores
 	http.HandleFunc("/v2.0/metrics", metrics)
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	if err := http.ListenAndServe(":8000", nil); err != nil {
 		log.Fatal("failed to start server", err)
 	}
 }
 
 func metrics(writer http.ResponseWriter, request *http.Request) {
-	// todo I should 2048 be intelligent about the larger payload, right now it will die on larger than 2048
-	body := make([]byte, 2048)
-	bodySize, err := request.Body.Read(body)
+	var buffer []byte
+	bodyBuffer := bytes.NewBuffer(buffer)
+	_, err := bodyBuffer.ReadFrom(request.Body)
 	if err != nil && err != io.EOF {
 		writer.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(writer, "Error reading payload", err)
 		return
 	}
-// For some reason json is not properly unmarshalling to my array of metric, using a generic interface instead
+	body := make([]byte, bodyBuffer.Len())
+	bodyBuffer.Read(body)
+// todo For some reason json is not properly unmarshalling to my array of metric, using a generic interface instead
 //	var metrics []metric
+
 	var metrics []interface{}
-	err = json.Unmarshal(body[:bodySize], &metrics)
+	err = json.Unmarshal(body, &metrics)
 	if err != nil{
 		writer.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(writer, "Invalid json", err)
