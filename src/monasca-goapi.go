@@ -6,7 +6,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"github.com/Shopify/sarama"
@@ -25,12 +24,13 @@ type metric struct {
 
 // Implment the Encode interface so metric can be used for sending to kafka.
 func (m metric) Encode() ([]byte, error) {
-	buffer := new(bytes.Buffer)
-	err := binary.Write(buffer, binary.LittleEndian, m)
-	if err != nil {
+	// This is probably not the best way to do this but it is sufficient for a proof of concept
+	jsonMetric, err := json.Marshal(m)
+	if err == nil {
 		return nil, err
 	}
-	return buffer.Bytes(), nil
+	encoder := sarama.StringEncoder(jsonMetric)
+	return encoder.Encode()
 }
 
 type metricsHandler struct {
@@ -56,6 +56,7 @@ func (mh metricsHandler) ServeHTTP(writer http.ResponseWriter, request *http.Req
 		return
 	}
 
+	//todo no validation is done on the json at this point
 	for _, measurement := range metrics {
 		mh.measurements <- measurement
 	}
@@ -98,7 +99,7 @@ func kafkaProducer(url []string, measurements <-chan metric) {
 		// todo I should check for errors coming back from Kafka
 		err = producer.QueueMessage("message", nil, measurement)
 		if err != nil {
-			fmt.Printf("Unable to publish to Kafka\n\t%v", err)
+			fmt.Printf("Unable to publish to Kafka\n\t%v\n", err)
 		}
 	}
 }
