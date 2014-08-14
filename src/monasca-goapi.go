@@ -71,7 +71,9 @@ func main() {
 	//	kafkaHosts := []string{"10.22.156.14:9092", "10.22.156.15:9092", "10.22.156.16:9092"}
 	measurements := make(chan metric, 1024) // Room for 1024 as buffer to spikes
 
-	go kafkaProducer(kafkaHosts, measurements)
+	for i := 0; i < 32; i++ {
+		go kafkaProducer(kafkaHosts, measurements)
+	}
 
 	handler := metricsHandler{measurements} // Should only respond on /v2.0/metrics but as it is the only functionality I let it respond everwhere
 	if err := http.ListenAndServe(":8000", handler); err != nil {
@@ -96,8 +98,7 @@ func kafkaProducer(url []string, measurements <-chan metric) {
 
 	//Push from the measurements channel to kafka
 	for measurement := range measurements {
-		// todo I should check for errors coming back from Kafka
-		err = producer.QueueMessage("metrics", nil, measurement)
+		err = producer.SendMessage("metrics", nil, measurement)
 		if err != nil {
 			fmt.Printf("Unable to publish to Kafka\n\t%v\n", err)
 		}
