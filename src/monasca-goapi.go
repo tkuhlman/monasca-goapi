@@ -97,7 +97,7 @@ func kafkaProducer(url []string, measurements <-chan metric) {
 	//Push from the measurements channel to kafka
 	for measurement := range measurements {
 		// todo I should check for errors coming back from Kafka
-		err = producer.QueueMessage("message", nil, measurement)
+		err = producer.QueueMessage("metrics", nil, measurement)
 		if err != nil {
 			fmt.Printf("Unable to publish to Kafka\n\t%v\n", err)
 		}
