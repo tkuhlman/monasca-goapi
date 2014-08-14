@@ -1,12 +1,12 @@
 /* Simple program used to benchmark go for the Monasca api
-	It just receives measurements and pushes them into kafka, nothing more.
- */
+It just receives measurements and pushes them into kafka, nothing more.
+*/
 
 package main
 
 import (
-	"encoding/binary"
 	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"github.com/Shopify/sarama"
@@ -17,10 +17,10 @@ import (
 )
 
 type metric struct {
-	Name string
+	Name       string
 	Dimensions map[string]string
-	Timestamp int  //In a real implementation probably shouldn't be an int
-	Value int
+	Timestamp  int //In a real implementation probably shouldn't be an int
+	Value      int
 }
 
 // Implment the Encode interface so metric can be used for sending to kafka.
@@ -37,8 +37,8 @@ func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU()) // Use all the machine's cores
 
 	kafkaHosts := []string{"192.168.10.4:9092"}
-//	kafkaHosts := []string{"10.22.156.14:9092", "10.22.156.15:9092", "10.22.156.16:9092"}
-	measurements := make(chan metric, 1024)  // Room for 1024 as buffer to spikes
+	//	kafkaHosts := []string{"10.22.156.14:9092", "10.22.156.15:9092", "10.22.156.16:9092"}
+	measurements := make(chan metric, 1024) // Room for 1024 as buffer to spikes
 
 	go kafkaProducer(kafkaHosts, measurements)
 
@@ -65,7 +65,7 @@ func kafkaProducer(url []string, measurements <-chan metric) {
 	defer producer.Close()
 
 	//Push from the measurements channel to kafka
-	for measurement := range(measurements) {
+	for measurement := range measurements {
 		// todo I should check for errors coming back from Kafka
 		err = producer.QueueMessage("message", nil, measurement)
 		if err != nil {
@@ -87,16 +87,16 @@ func metrics(writer http.ResponseWriter, request *http.Request) {
 
 	var metrics []metric
 	err = json.Unmarshal(body, &metrics)
-	if err != nil{
+	if err != nil {
 		writer.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(writer, "Invalid json", err)
 		return
 	}
 
-	for _, measurement := range(metrics) {
+	for _, measurement := range metrics {
 		fmt.Printf("%+v", measurement)
-//		measurements <- measurement
+		//		measurements <- measurement
 	}
 
-	writer.WriteHeader(http.StatusNoContent)  //StatusNoContent == 204
+	writer.WriteHeader(http.StatusNoContent) //StatusNoContent == 204
 }
