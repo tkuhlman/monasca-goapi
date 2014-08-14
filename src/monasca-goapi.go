@@ -5,6 +5,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -16,17 +17,20 @@ import (
 )
 
 type metric struct {
-	name string
-	dimensions map[string]string
-	timestamp int  //In a real implementation probably shouldn't be an int
-	value int
+	Name string
+	Dimensions map[string]string
+	Timestamp int  //In a real implementation probably shouldn't be an int
+	Value int
 }
 
 // Implment the Encode interface so metric can be used for sending to kafka.
-func (metric) Encode() ([]byte, error) {
-	//todo
-	var empty []byte
-	return empty, nil
+func (m metric) Encode() ([]byte, error) {
+	buffer := new(bytes.Buffer)
+	err := binary.Write(buffer, binary.LittleEndian, m)
+	if err != nil {
+		return nil, err
+	}
+	return buffer.Bytes(), nil
 }
 
 func main() {
@@ -71,8 +75,7 @@ func kafkaProducer(url []string, measurements <-chan metric) {
 }
 
 func metrics(writer http.ResponseWriter, request *http.Request) {
-	var buffer []byte
-	bodyBuffer := bytes.NewBuffer(buffer)
+	bodyBuffer := new(bytes.Buffer)
 	_, err := bodyBuffer.ReadFrom(request.Body)
 	if err != nil && err != io.EOF {
 		writer.WriteHeader(http.StatusBadRequest)
@@ -82,8 +85,6 @@ func metrics(writer http.ResponseWriter, request *http.Request) {
 	body := make([]byte, bodyBuffer.Len())
 	bodyBuffer.Read(body)
 
-	// todo For some reason json is not properly unmarshalling to my array of metric, works with interace{}
-	// var metrics []interface{}
 	var metrics []metric
 	err = json.Unmarshal(body, &metrics)
 	if err != nil{
